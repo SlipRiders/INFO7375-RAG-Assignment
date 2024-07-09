@@ -43,7 +43,7 @@ async def process_user_query(user_query):
 async def generate_vector(text):
     response = await client.embeddings.create(
         input=[text],  # Embedding API expects a list of inputs
-        model="text-embedding-ada-002"
+        model="text-embedding-3-small"
     )
     return response.data[0].embedding
 
