@@ -4,7 +4,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 
 # Initialize OpenAI
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Initialize Pinecone
 api_key = os.getenv("pinecone-api-key")
