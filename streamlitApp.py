@@ -18,7 +18,7 @@ index_name = "restaurant-index"
 if index_name not in pc.list_indexes().names():
     pc.create_index(
         name=index_name,
-        dimension=1711,  # Make sure this matches your vector dimension
+        dimension=1536,  # Make sure this matches your vector dimension
         metric='cosine',
         spec=ServerlessSpec(
             cloud='aws',
