@@ -37,7 +37,7 @@ async def process_user_query(user_query):
             {"role": "user", "content": f"Extract key information from the following query: {user_query}"}
         ]
     )
-    return response['choices'][0]['message']['content'].strip()
+    return response.choices[0].message.content
 
 
 async def generate_vector(text):
