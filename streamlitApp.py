@@ -45,7 +45,7 @@ async def generate_vector(text):
         input=[text],  # Embedding API expects a list of inputs
         model="text-embedding-ada-002"
     )
-    return response['data'][0]['embedding']
+    return response.data[0].embedding
 
 
 async def get_recommendations(processed_query):
