@@ -2,9 +2,11 @@ import streamlit as st
 import openai
 import pinecone
 
-# Initialize OpenAI and Pinecone
+# Initialize OpenAI
 openai.api_key = "your-openai-api-key"
-pinecone.init(api_key="your-pinecone-api-key", environment="your-environment")
+
+# Initialize Pinecone
+pinecone.init(api_key="your-pinecone-api-key", environment="us-east-1")
 index = pinecone.Index("restaurant-index")
 
 
