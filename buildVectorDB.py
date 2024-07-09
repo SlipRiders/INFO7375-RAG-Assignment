@@ -16,7 +16,7 @@ text_columns = ['Restaurant Name', 'Address', 'Locality', 'Locality Verbose', 'C
 data['combined_text'] = data[text_columns].astype(str).agg(' '.join, axis=1)
 
 # TF-IDF vectorization
-vectorizer = TfidfVectorizer(max_features=50)
+vectorizer = TfidfVectorizer(max_features=200)
 tfidf_matrix = vectorizer.fit_transform(data['combined_text'])
 print("TF-IDF matrix shape:", tfidf_matrix.shape)
 
@@ -37,7 +37,7 @@ combined_features = np.hstack((tfidf_matrix.toarray(), one_hot_encoded, scaled_n
 print("Combined features shape:", combined_features.shape)
 
 # Initialize Pinecone
-api_key = 'your-pinecone-api-key'
+api_key = 'pinecone-api-key'
 pc = Pinecone(api_key=api_key)
 
 # delete existing index if it exists
