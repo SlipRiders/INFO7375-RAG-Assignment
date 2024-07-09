@@ -29,7 +29,7 @@ index = pc.Index(index_name)
 
 
 def process_user_query(user_query):
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
