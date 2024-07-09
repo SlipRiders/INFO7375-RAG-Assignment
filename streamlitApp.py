@@ -1,13 +1,31 @@
 import streamlit as st
 import openai
-import pinecone
+import os
+from pinecone import Pinecone, ServerlessSpec
 
 # Initialize OpenAI
 openai.api_key = "your-openai-api-key"
 
 # Initialize Pinecone
-pinecone.init(api_key="your-pinecone-api-key", environment="us-east-1")
-index = pinecone.Index("restaurant-index")
+api_key = "your-pinecone-api-key"
+environment = "us-east-1"
+pc = Pinecone(api_key=api_key)
+
+index_name = "restaurant-index"
+
+# Check if the index exists, if not, create it
+if index_name not in pc.list_indexes().names():
+    pc.create_index(
+        name=index_name,
+        dimension=225,  # Make sure this matches your vector dimension
+        metric='cosine',
+        spec=ServerlessSpec(
+            cloud='aws',
+            region=environment
+        )
+    )
+
+index = pc.Index(index_name)
 
 
 def process_user_query(user_query):
