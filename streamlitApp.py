@@ -51,6 +51,7 @@ async def generate_vector(text):
 async def get_recommendations(processed_query):
     query_vector = await generate_vector(processed_query)
     results = index.query(vector=query_vector, top_k=10, include_metadata=True)
+    print(results)
     recommendations = [
         {
             "Restaurant ID": res["id"],
