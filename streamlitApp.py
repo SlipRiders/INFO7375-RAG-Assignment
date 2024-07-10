@@ -45,14 +45,6 @@ async def get_recommendations(user_query):
             "Aggregate rating": metadata.get("Aggregate rating", "N/A"),
             "Votes": metadata.get("Votes", "N/A"),
             "Rating text": metadata.get("Rating text", "N/A"),
-            "Reviews": metadata.get("Reviews", "N/A"),
-            "Opening Hours": metadata.get("Opening Hours", "N/A"),
-            "Restaurant Type": metadata.get("Restaurant Type", "N/A"),
-            "Food Quality Rating": metadata.get("Food Quality Rating", "N/A"),
-            "Service Quality Rating": metadata.get("Service Quality Rating", "N/A"),
-            "Ambience Rating": metadata.get("Ambience Rating", "N/A"),
-            "Parking Information": metadata.get("Parking Information", "N/A"),
-            "Special Features": metadata.get("Special Features", "N/A")
         })
 
     # Use GPT-3 to generate a response based on the recommendations
@@ -80,14 +72,6 @@ async def generate_response(user_query, recommendations):
             f"Aggregate rating: {recommendation['Aggregate rating']}\n"
             f"Votes: {recommendation['Votes']}\n"
             f"Rating text: {recommendation['Rating text']}\n"
-            f"Reviews: {recommendation['Reviews']}\n"
-            f"Opening Hours: {recommendation['Opening Hours']}\n"
-            f"Restaurant Type: {recommendation['Restaurant Type']}\n"
-            f"Food Quality Rating: {recommendation['Food Quality Rating']}\n"
-            f"Service Quality Rating: {recommendation['Service Quality Rating']}\n"
-            f"Ambience Rating: {recommendation['Ambience Rating']}\n"
-            f"Parking Information: {recommendation['Parking Information']}\n"
-            f"Special Features: {recommendation['Special Features']}\n"
         )
     response = await client.chat.create(
         model="gpt-3.5-turbo",
