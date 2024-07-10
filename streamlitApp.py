@@ -3,6 +3,7 @@ import openai
 import os
 import asyncio
 import pinecone
+from pinecone import Pinecone, ServerlessSpec
 from openai import AsyncOpenAI
 
 # Initialize OpenAI
@@ -15,9 +16,9 @@ client = AsyncOpenAI(api_key=openai.api_key)
 
 # Initialize Pinecone
 api_key = os.getenv("PINECONE_API_KEY")
-pc = pinecone(api_key=api_key)
-index_name = "restaurant-index"
 environment = "us-east-1"
+pc = Pinecone(api_key=api_key)
+index_name = "restaurant-index"
 
 # Ensure the index exists
 if index_name not in pc.list_indexes().names():
