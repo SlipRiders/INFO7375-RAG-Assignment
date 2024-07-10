@@ -36,14 +36,43 @@ async def generate_vector(text):
     )
     return response.data[0].embedding
 
-async def select_best_recommendation(user_query, recommendations):
+async def get_recommendations(user_query):
+    # Generate vector for user query
+    query_vector = await generate_vector(user_query)
+    # Query Pinecone for relevant information
+    results = index.query(vector=query_vector, top_k=10, include_metadata=True)
+
+    # Extract relevant information from the results
+    recommendations = []
+    for res in results["matches"]:
+        recommendations.append({
+            "Restaurant ID": res["id"],
+            "Restaurant Name": res["metadata"].get("Restaurant Name", "N/A"),
+            "Address": res["metadata"].get("Address", "N/A"),
+            "Locality": res["metadata"].get("Locality", "N/A"),
+            "Cuisines": res["metadata"].get("Cuisines", "N/A"),
+            "Average Cost for two": res["metadata"].get("Average Cost for two", "N/A"),
+            "Aggregate rating": res["metadata"].get("Aggregate rating", "N/A"),
+            "Votes": res["metadata"].get("Votes", "N/A"),
+            "Rating text": res["metadata"].get("Rating text", "N/A")
+        })
+
+    # Use GPT-3 to generate a response based on the recommendations
+    if recommendations:
+        response = await generate_response(user_query, recommendations)
+        return response
+    else:
+        return "No relevant recommendations found."
+
+
+async def generate_response(user_query, recommendations):
     prompt = (
         f"User query: {user_query}\n"
-        f"Here are several restaurant recommendations. Please select the one that best matches the user's query and provide a detailed description:\n"
+        f"Based on the user query, here are several restaurant recommendations. Please provide a detailed description of the best match:\n"
     )
     for i, recommendation in enumerate(recommendations):
         prompt += (
-            f"\nRecommendation {i+1}:\n"
+            f"\nRecommendation {i + 1}:\n"
             f"Name: {recommendation['Restaurant Name']}\n"
             f"Address: {recommendation['Address']}\n"
             f"Locality: {recommendation['Locality']}\n"
@@ -62,29 +91,6 @@ async def select_best_recommendation(user_query, recommendations):
     )
     return response.choices[0].message.content.strip()
 
-async def get_recommendations(user_query):
-    query_vector = await generate_vector(user_query)
-    results = index.query(vector=query_vector, top_k=10, include_metadata=True)
-
-    recommendations = []
-    for res in results["matches"]:
-        recommendations.append({
-            "Restaurant ID": res["id"],
-            "Restaurant Name": res["metadata"].get("Restaurant Name", "N/A"),
-            "Address": res["metadata"].get("Address", "N/A"),
-            "Locality": res["metadata"].get("Locality", "N/A"),
-            "Cuisines": res["metadata"].get("Cuisines", "N/A"),
-            "Average Cost for two": res["metadata"].get("Average Cost for two", "N/A"),
-            "Aggregate rating": res["metadata"].get("Aggregate rating", "N/A"),
-            "Votes": res["metadata"].get("Votes", "N/A"),
-            "Rating text": res["metadata"].get("Rating text", "N/A")
-        })
-
-    if recommendations:
-        best_recommendation = await select_best_recommendation(user_query, recommendations)
-        return best_recommendation
-    else:
-        return "No relevant recommendations found."
 
 # Initialize session state for conversation history
 if 'history' not in st.session_state:
