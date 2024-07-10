@@ -44,17 +44,22 @@ async def get_recommendations(user_query):
     recommendations = []
     for res in results["matches"]:
         metadata = res['metadata']
-        recommendations.append({
-            "Restaurant ID": res["id"],
-            "Restaurant Name": metadata.get("Restaurant Name", "N/A"),
-            "Address": metadata.get("Address", "N/A"),
-            "Locality": metadata.get("Locality", "N/A"),
-            "Cuisines": metadata.get("Cuisines", "N/A"),
-            "Average Cost for two": metadata.get("Average Cost for two", "N/A"),
-            "Aggregate rating": metadata.get("Aggregate rating", "N/A"),
-            "Votes": metadata.get("Votes", "N/A"),
-            "Rating text": metadata.get("Rating text", "N/A"),
-        })
+        aggregate_rating = float(metadata.get("Aggregate rating", 0))
+        votes = int(metadata.get("Votes", 0))
+
+        # Only consider restaurants with sufficient ratings and votes
+        if aggregate_rating > 0 and votes > 5:
+            recommendations.append({
+                "Restaurant ID": res["id"],
+                "Restaurant Name": metadata.get("Restaurant Name", "N/A"),
+                "Address": metadata.get("Address", "N/A"),
+                "Locality": metadata.get("Locality", "N/A"),
+                "Cuisines": metadata.get("Cuisines", "N/A"),
+                "Average Cost for two": metadata.get("Average Cost for two", "N/A"),
+                "Aggregate rating": metadata.get("Aggregate rating", "N/A"),
+                "Votes": metadata.get("Votes", "N/A"),
+                "Rating text": metadata.get("Rating text", "N/A"),
+            })
 
     # Use GPT-3 to generate a response based on the recommendations
     if recommendations:
