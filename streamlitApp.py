@@ -4,10 +4,6 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 import asyncio
 from openai import AsyncOpenAI
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Initialize OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
