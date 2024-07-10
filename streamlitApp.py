@@ -4,10 +4,15 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 import asyncio
 from openai import AsyncOpenAI
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = AsyncOpenAI(api_key=openai.api_key)
+
 # Initialize Pinecone
 api_key = os.getenv("PINECONE_API_KEY")
 environment = "us-east-1"
@@ -69,14 +74,14 @@ async def get_recommendations(user_query):
     for res in results["matches"]:
         recommendations.append({
             "Restaurant ID": res["id"],
-            "Restaurant Name": res["metadata"]["Restaurant Name"],
-            "Address": res["metadata"]["Address"],
-            "Locality": res["metadata"]["Locality"],
-            "Cuisines": res["metadata"]["Cuisines"],
-            "Average Cost for two": res["metadata"]["Average Cost for two"],
-            "Aggregate Rating": res["metadata"]["Aggregate rating"],
-            "Votes": res["metadata"]["Votes"],
-            "Rating Text": res["metadata"]["Rating text"]
+            "Restaurant Name": res["metadata"].get("Restaurant Name", "N/A"),
+            "Address": res["metadata"].get("Address", "N/A"),
+            "Locality": res["metadata"].get("Locality", "N/A"),
+            "Cuisines": res["metadata"].get("Cuisines", "N/A"),
+            "Average Cost for two": res["metadata"].get("Average Cost for two", "N/A"),
+            "Aggregate rating": res["metadata"].get("Aggregate rating", "N/A"),
+            "Votes": res["metadata"].get("Votes", "N/A"),
+            "Rating text": res["metadata"].get("Rating text", "N/A")
         })
 
     if recommendations:
