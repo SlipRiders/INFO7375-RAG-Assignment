@@ -122,16 +122,24 @@ st.title("Restaurant Recommendation Chatbot")
 
 user_query = st.text_input("Enter your preferences or needs:")
 
+
+def get_recommendation_and_description(user_query):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    processed_query = loop.run_until_complete(process_user_query(user_query))
+    recommendation = loop.run_until_complete(get_recommendations(processed_query, user_query))
+
+    if recommendation:
+        description = loop.run_until_complete(generate_natural_language_description(recommendation))
+        return description
+    else:
+        return "No relevant recommendations found."
+
+
 if st.button("Get Recommendations"):
     if user_query:
-        processed_query = asyncio.run(process_user_query(user_query))
-        recommendation = asyncio.run(get_recommendations(processed_query, user_query))
-
-        if recommendation:
-            description = await generate_natural_language_description(recommendation)
-            st.session_state.history.append({"user": user_query, "bot": description})
-        else:
-            st.session_state.history.append({"user": user_query, "bot": "No relevant recommendations found."})
+        description = get_recommendation_and_description(user_query)
+        st.session_state.history.append({"user": user_query, "bot": description})
     else:
         st.write("Please enter a query.")
 
