@@ -28,6 +28,15 @@ if index_name not in pc.list_indexes().names():
 
 index = pc.Index(index_name)
 
+# Helper function to parse key elements from the user query
+def parse_key_elements(query_response):
+    # Assuming the response is in the format "location: X, rating: Y"
+    elements = query_response.split(',')
+    key_elements = {}
+    for element in elements:
+        key, value = element.split(':')
+        key_elements[key.strip()] = value.strip()
+    return key_elements
 
 async def process_user_query(user_query):
     response = await client.chat.completions.create(
@@ -37,8 +46,8 @@ async def process_user_query(user_query):
             {"role": "user", "content": f"Extract key elements from the following query: {user_query}"}
         ]
     )
-    return response.choices[0].message.content.strip()
-
+    query_response = response.choices[0].message.content.strip()
+    return parse_key_elements(query_response)
 
 async def generate_vector(text):
     response = await client.embeddings.create(
@@ -47,15 +56,14 @@ async def generate_vector(text):
     )
     return response.data[0].embedding
 
-
 async def filter_results_by_query(results, key_elements):
     filtered_results = []
     for res in results["matches"]:
         metadata = res["metadata"]
-        if key_elements['location'].lower() in metadata['Locality'].lower() and float(metadata['Aggregate Rating']) >= float(key_elements['rating']):
-            filtered_results.append(res)
+        if 'location' in key_elements and 'rating' in key_elements:
+            if key_elements['location'].lower() in metadata['Locality'].lower() and float(metadata['Aggregate Rating']) >= float(key_elements['rating']):
+                filtered_results.append(res)
     return filtered_results
-
 
 async def generate_natural_language_description(recommendation):
     description_prompt = (
@@ -78,7 +86,6 @@ async def generate_natural_language_description(recommendation):
     )
     return response.choices[0].message.content.strip()
 
-
 async def check_relevance(user_query, description):
     prompt = (
         f"User query: {user_query}\n"
@@ -96,7 +103,6 @@ async def check_relevance(user_query, description):
     relevance = "yes" in relevance_response
     explanation = relevance_response if not relevance else ""
     return relevance, explanation
-
 
 async def get_recommendations(processed_query, user_query):
     query_vector = await generate_vector(processed_query)
@@ -128,7 +134,6 @@ async def get_recommendations(processed_query, user_query):
 
     return recommendations[0] if recommendations else None
 
-
 # Initialize session state for conversation history
 if 'history' not in st.session_state:
     st.session_state.history = []
@@ -136,7 +141,6 @@ if 'history' not in st.session_state:
 st.title("Restaurant Recommendation Chatbot")
 
 user_query = st.text_input("Enter your preferences or needs:")
-
 
 def get_recommendation_and_description(user_query):
     loop = asyncio.new_event_loop()
@@ -149,7 +153,6 @@ def get_recommendation_and_description(user_query):
         return description
     else:
         return "No relevant recommendations found."
-
 
 if st.button("Get Recommendations"):
     if user_query:
