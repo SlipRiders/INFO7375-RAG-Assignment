@@ -34,7 +34,7 @@ async def process_user_query(user_query):
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"Extract key information from the following query: {user_query}"}
+            {"role": "user", "content": f"Extract key elements from the following query: {user_query}"}
         ]
     )
     return response.choices[0].message.content.strip()
@@ -48,31 +48,13 @@ async def generate_vector(text):
     return response.data[0].embedding
 
 
-async def get_recommendations(processed_query, user_query):
-    query_vector = await generate_vector(processed_query)
-    results = index.query(vector=query_vector, top_k=10, include_metadata=True)
-    print(results)
-
-    recommendations = []
+async def filter_results_by_query(results, key_elements):
+    filtered_results = []
     for res in results["matches"]:
-        recommendation = {
-            "Restaurant ID": res["id"],
-            "Restaurant Name": res["metadata"]["Restaurant Name"],
-            "Address": res["metadata"]["Address"],
-            "Locality": res["metadata"]["Locality"],
-            "Cuisines": res["metadata"]["Cuisines"],
-            "Average Cost for Two": res["metadata"]["Average Cost for two"],
-            "Aggregate Rating": res["metadata"]["Aggregate rating"],
-            "Votes": res["metadata"]["Votes"],
-            "Rating Text": res["metadata"]["Rating text"]
-        }
-        description = await generate_natural_language_description(recommendation)
-        relevance = await check_relevance(user_query, description)
-        if relevance:
-            recommendations.append(recommendation)
-            break
-
-    return recommendations[0] if recommendations else None
+        metadata = res["metadata"]
+        if key_elements['location'].lower() in metadata['Locality'].lower() and float(metadata['Aggregate Rating']) >= float(key_elements['rating']):
+            filtered_results.append(res)
+    return filtered_results
 
 
 async def generate_natural_language_description(recommendation):
@@ -101,7 +83,7 @@ async def check_relevance(user_query, description):
     prompt = (
         f"User query: {user_query}\n"
         f"Recommendation description: {description}\n"
-        "Does the recommendation description match the user query? Reply with 'yes' or 'no'."
+        "Does the recommendation description match the user query? Reply with 'yes' or 'no' and explain why."
     )
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -110,8 +92,41 @@ async def check_relevance(user_query, description):
             {"role": "user", "content": prompt}
         ]
     )
-    relevance = response.choices[0].message.content.strip().lower()
-    return relevance == "yes"
+    relevance_response = response.choices[0].message.content.strip().lower()
+    relevance = "yes" in relevance_response
+    explanation = relevance_response if not relevance else ""
+    return relevance, explanation
+
+
+async def get_recommendations(processed_query, user_query):
+    query_vector = await generate_vector(processed_query)
+    results = index.query(vector=query_vector, top_k=10, include_metadata=True)
+    key_elements = await process_user_query(user_query)  # 提取用户查询中的关键元素
+
+    filtered_results = await filter_results_by_query(results, key_elements)
+
+    recommendations = []
+    for res in filtered_results:
+        recommendation = {
+            "Restaurant ID": res["id"],
+            "Restaurant Name": res["metadata"]["Restaurant Name"],
+            "Address": res["metadata"]["Address"],
+            "Locality": res["metadata"]["Locality"],
+            "Cuisines": res["metadata"]["Cuisines"],
+            "Average Cost for Two": res["metadata"]["Average Cost for Two"],
+            "Aggregate Rating": res["metadata"]["Aggregate Rating"],
+            "Votes": res["metadata"]["Votes"],
+            "Rating Text": res["metadata"]["Rating Text"]
+        }
+        description = await generate_natural_language_description(recommendation)
+        relevance, explanation = await check_relevance(user_query, description)
+        if relevance:
+            recommendations.append(recommendation)
+            break
+        else:
+            print(f"Recommendation discarded: {explanation}")
+
+    return recommendations[0] if recommendations else None
 
 
 # Initialize session state for conversation history
