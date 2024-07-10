@@ -18,7 +18,7 @@ index_name = "restaurant-index"
 if index_name not in pc.list_indexes().names():
     pc.create_index(
         name=index_name,
-        dimension=1536,  # Make sure this matches your vector dimension
+        dimension=1536,  # Updated to match the vector dimension of the model
         metric='cosine',
         spec=ServerlessSpec(
             cloud='aws',
@@ -37,7 +37,7 @@ async def process_user_query(user_query):
             {"role": "user", "content": f"Extract key information from the following query: {user_query}"}
         ]
     )
-    return response.choices[0].message.content
+    return response.choices[0].message.content.strip()
 
 
 async def generate_vector(text):
@@ -48,12 +48,14 @@ async def generate_vector(text):
     return response.data[0].embedding
 
 
-async def get_recommendations(processed_query):
+async def get_recommendations(processed_query, user_query):
     query_vector = await generate_vector(processed_query)
     results = index.query(vector=query_vector, top_k=10, include_metadata=True)
     print(results)
-    recommendations = [
-        {
+
+    recommendations = []
+    for res in results["matches"]:
+        recommendation = {
             "Restaurant ID": res["id"],
             "Restaurant Name": res["metadata"]["Restaurant Name"],
             "Address": res["metadata"]["Address"],
@@ -64,9 +66,13 @@ async def get_recommendations(processed_query):
             "Votes": res["metadata"]["Votes"],
             "Rating Text": res["metadata"]["Rating text"]
         }
-        for res in results["matches"]
-    ]
-    return recommendations
+        description = await generate_natural_language_description(recommendation)
+        relevance = await check_relevance(user_query, description)
+        if relevance:
+            recommendations.append(recommendation)
+            break
+
+    return recommendations[0] if recommendations else None
 
 
 async def generate_natural_language_description(recommendation):
@@ -88,7 +94,24 @@ async def generate_natural_language_description(recommendation):
             {"role": "user", "content": description_prompt}
         ]
     )
-    return response.choices[0].message.content
+    return response.choices[0].message.content.strip()
+
+
+async def check_relevance(user_query, description):
+    prompt = (
+        f"User query: {user_query}\n"
+        f"Recommendation description: {description}\n"
+        "Does the recommendation description match the user query? Reply with 'yes' or 'no'."
+    )
+    response = await client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    relevance = response.choices[0].message.content.strip().lower()
+    return relevance == "yes"
 
 
 # Initialize session state for conversation history
@@ -102,14 +125,13 @@ user_query = st.text_input("Enter your preferences or needs:")
 if st.button("Get Recommendations"):
     if user_query:
         processed_query = asyncio.run(process_user_query(user_query))
-        recommendations = asyncio.run(get_recommendations(processed_query))
+        recommendation = asyncio.run(get_recommendations(processed_query, user_query))
 
-        if recommendations:
-            for rec in recommendations:
-                description = asyncio.run(generate_natural_language_description(rec))
-                st.session_state.history.append({"user": user_query, "bot": description})
+        if recommendation:
+            description = await generate_natural_language_description(recommendation)
+            st.session_state.history.append({"user": user_query, "bot": description})
         else:
-            st.session_state.history.append({"user": user_query, "bot": "No recommendations found."})
+            st.session_state.history.append({"user": user_query, "bot": "No relevant recommendations found."})
     else:
         st.write("Please enter a query.")
 
