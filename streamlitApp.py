@@ -47,10 +47,10 @@ async def select_best_recommendation(user_query, recommendations):
             f"Address: {recommendation['Address']}\n"
             f"Locality: {recommendation['Locality']}\n"
             f"Cuisines: {recommendation['Cuisines']}\n"
-            f"Average Cost for Two: {recommendation['Average Cost for Two']}\n"
-            f"Aggregate Rating: {recommendation['Aggregate Rating']}\n"
+            f"Average Cost for two: {recommendation['Average Cost for Two']}\n"
+            f"Aggregate rating: {recommendation['Aggregate Rating']}\n"
             f"Votes: {recommendation['Votes']}\n"
-            f"Rating Text: {recommendation['Rating Text']}\n"
+            f"Rating text: {recommendation['Rating Text']}\n"
         )
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
