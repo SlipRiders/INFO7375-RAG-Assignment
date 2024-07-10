@@ -3,12 +3,9 @@ import openai
 import os
 import asyncio
 import pinecone
-from pinecone import Pinecone, ServerlessSpec
 from openai import AsyncOpenAI
+from pinecone import Pinecone, ServerlessSpec
 
-# Initialize OpenAI
-openai.api_key = os.getenv("OPENAI_API_KEY")
-client = AsyncOpenAI(api_key=openai.api_key)
 
 # Initialize OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -34,12 +31,11 @@ if index_name not in pc.list_indexes().names():
 
 index = pc.Index(index_name)
 
-
 # Function to generate vector and get recommendations
 async def get_recommendations(user_query):
     # Generate vector for user query
-    query_vector = await client.embeddings.create(input=[user_query], model="text-embedding-ada-002")
-    query_vector = query_vector['data'][0]['embedding']
+    response = await client.embeddings.create(input=[user_query], model="text-embedding-3-small")
+    query_vector = response.data[0].embedding
 
     # Query Pinecone for relevant information
     results = index.query(vector=query_vector, top_k=10, include_metadata=True)
@@ -67,7 +63,6 @@ async def get_recommendations(user_query):
     else:
         return "No relevant recommendations found."
 
-
 # Function to generate response using GPT-3
 async def generate_response(user_query, recommendations):
     prompt = (
@@ -93,7 +88,6 @@ async def generate_response(user_query, recommendations):
     )
     return response['choices'][0]['message']['content'].strip()
 
-
 # Initialize session state for conversation history
 if 'history' not in st.session_state:
     st.session_state.history = []
@@ -102,15 +96,13 @@ st.title("Restaurant Recommendation Chatbot")
 
 user_query = st.text_input("Enter your preferences or needs:")
 
-def get_recommendation_and_description(user_query):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    recommendation = loop.run_until_complete(get_recommendations(user_query))
+async def get_recommendation_and_description(user_query):
+    recommendation = await get_recommendations(user_query)
     return recommendation
 
 if st.button("Get Recommendations"):
     if user_query:
-        description = get_recommendation_and_description(user_query)
+        description = asyncio.run(get_recommendation_and_description(user_query))
         st.session_state.history.append({"user": user_query, "bot": description})
     else:
         st.write("Please enter a query.")
@@ -124,6 +116,3 @@ for entry in st.session_state.history:
 # Button to clear conversation history
 if st.button("Clear History"):
     st.session_state.history = []
-# Ensure you have some relaxation time
-if st.button("Relax with a stretch"):
-    st.write("Take a moment to stretch and relax, it helps to stay focused!")
