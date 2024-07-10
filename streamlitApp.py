@@ -2,12 +2,12 @@ import streamlit as st
 import openai
 import os
 import asyncio
-from langchain import OpenAI, Pinecone, LangChain
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import PineconeVectorStore
+from pinecone import Pinecone
+from openai import AsyncOpenAI
 
 # Initialize OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
+client = AsyncOpenAI(api_key=openai.api_key)
 
 # Initialize Pinecone
 api_key = os.getenv("PINECONE_API_KEY")
@@ -21,24 +21,22 @@ if index_name not in pinecone.list_indexes():
 
 index = pinecone.Index(index_name)
 
-# Initialize LangChain
-embeddings = OpenAIEmbeddings(api_key=openai.api_key)
-vector_store = PineconeVectorStore(pinecone_index=index, embedding=embeddings)
-chain = LangChain(vector_store)
 
 # Function to generate vector and get recommendations
 async def get_recommendations(user_query):
     # Generate vector for user query
-    query_vector = await embeddings.embed_text_async(user_query)
+    query_vector = await client.embeddings.create(input=[user_query], model="text-embedding-ada-002")
+    query_vector = query_vector['data'][0]['embedding']
+
     # Query Pinecone for relevant information
-    results = vector_store.similarity_search_by_vector(query_vector, top_k=10)
+    results = index.query(vector=query_vector, top_k=10, include_metadata=True)
 
     # Extract relevant information from the results
     recommendations = []
-    for res in results:
-        metadata = res.metadata
+    for res in results["matches"]:
+        metadata = res['metadata']
         recommendations.append({
-            "Restaurant ID": res.id,
+            "Restaurant ID": res["id"],
             "Restaurant Name": metadata.get("Restaurant Name", "N/A"),
             "Address": metadata.get("Address", "N/A"),
             "Locality": metadata.get("Locality", "N/A"),
@@ -46,7 +44,15 @@ async def get_recommendations(user_query):
             "Average Cost for two": metadata.get("Average Cost for two", "N/A"),
             "Aggregate rating": metadata.get("Aggregate rating", "N/A"),
             "Votes": metadata.get("Votes", "N/A"),
-            "Rating text": metadata.get("Rating text", "N/A")
+            "Rating text": metadata.get("Rating text", "N/A"),
+            "Reviews": metadata.get("Reviews", "N/A"),
+            "Opening Hours": metadata.get("Opening Hours", "N/A"),
+            "Restaurant Type": metadata.get("Restaurant Type", "N/A"),
+            "Food Quality Rating": metadata.get("Food Quality Rating", "N/A"),
+            "Service Quality Rating": metadata.get("Service Quality Rating", "N/A"),
+            "Ambience Rating": metadata.get("Ambience Rating", "N/A"),
+            "Parking Information": metadata.get("Parking Information", "N/A"),
+            "Special Features": metadata.get("Special Features", "N/A")
         })
 
     # Use GPT-3 to generate a response based on the recommendations
@@ -57,6 +63,7 @@ async def get_recommendations(user_query):
         return "No relevant recommendations found."
 
 
+# Function to generate response using GPT-3
 async def generate_response(user_query, recommendations):
     prompt = (
         f"User query: {user_query}\n"
@@ -73,13 +80,21 @@ async def generate_response(user_query, recommendations):
             f"Aggregate rating: {recommendation['Aggregate rating']}\n"
             f"Votes: {recommendation['Votes']}\n"
             f"Rating text: {recommendation['Rating text']}\n"
+            f"Reviews: {recommendation['Reviews']}\n"
+            f"Opening Hours: {recommendation['Opening Hours']}\n"
+            f"Restaurant Type: {recommendation['Restaurant Type']}\n"
+            f"Food Quality Rating: {recommendation['Food Quality Rating']}\n"
+            f"Service Quality Rating: {recommendation['Service Quality Rating']}\n"
+            f"Ambience Rating: {recommendation['Ambience Rating']}\n"
+            f"Parking Information: {recommendation['Parking Information']}\n"
+            f"Special Features: {recommendation['Special Features']}\n"
         )
-    response = await openai.Completion.create(
+    response = await client.chat.create(
         model="gpt-3.5-turbo",
-        prompt=prompt,
-        max_tokens=150
+        messages=[{"role": "system", "content": "You are a helpful assistant."},
+                  {"role": "user", "content": prompt}]
     )
-    return response.choices[0].text.strip()
+    return response['choices'][0]['message']['content'].strip()
 
 
 # Initialize session state for conversation history
@@ -112,3 +127,6 @@ for entry in st.session_state.history:
 # Button to clear conversation history
 if st.button("Clear History"):
     st.session_state.history = []
+# Ensure you have some relaxation time
+if st.button("Relax with a stretch"):
+    st.write("Take a moment to stretch and relax, it helps to stay focused!")
