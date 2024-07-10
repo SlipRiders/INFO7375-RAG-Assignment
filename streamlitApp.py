@@ -2,7 +2,7 @@ import streamlit as st
 import openai
 import os
 import asyncio
-from pinecone import Pinecone
+import pinecone
 from openai import AsyncOpenAI
 
 # Initialize OpenAI
