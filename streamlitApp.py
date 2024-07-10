@@ -86,7 +86,7 @@ async def generate_response(user_query, recommendations):
         messages=[{"role": "system", "content": "You are a helpful assistant."},
                   {"role": "user", "content": prompt}]
     )
-    return response['choices'][0]['message']['content'].strip()
+    return response.choices[0].message.content
 
 # Initialize session state for conversation history
 if 'history' not in st.session_state:
