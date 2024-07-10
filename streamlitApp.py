@@ -47,10 +47,10 @@ async def select_best_recommendation(user_query, recommendations):
             f"Address: {recommendation['Address']}\n"
             f"Locality: {recommendation['Locality']}\n"
             f"Cuisines: {recommendation['Cuisines']}\n"
-            f"Average Cost for two: {recommendation['Average Cost for Two']}\n"
-            f"Aggregate rating: {recommendation['Aggregate Rating']}\n"
+            f"Average Cost for two: {recommendation['Average Cost for two']}\n"
+            f"Aggregate rating: {recommendation['Aggregate rating']}\n"
             f"Votes: {recommendation['Votes']}\n"
-            f"Rating text: {recommendation['Rating Text']}\n"
+            f"Rating text: {recommendation['Rating text']}\n"
         )
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -73,10 +73,10 @@ async def get_recommendations(user_query):
             "Address": res["metadata"]["Address"],
             "Locality": res["metadata"]["Locality"],
             "Cuisines": res["metadata"]["Cuisines"],
-            "Average Cost for Two": res["metadata"]["Average Cost for Two"],
-            "Aggregate Rating": res["metadata"]["Aggregate Rating"],
+            "Average Cost for two": res["metadata"]["Average Cost for two"],
+            "Aggregate Rating": res["metadata"]["Aggregate rating"],
             "Votes": res["metadata"]["Votes"],
-            "Rating Text": res["metadata"]["Rating Text"]
+            "Rating Text": res["metadata"]["Rating text"]
         })
 
     if recommendations:
