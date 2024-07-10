@@ -1,60 +1,52 @@
 import streamlit as st
 import openai
 import os
-from pinecone import Pinecone, ServerlessSpec
 import asyncio
-from openai import AsyncOpenAI
+from langchain import OpenAI, Pinecone, LangChain
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import PineconeVectorStore
 
 # Initialize OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
-client = AsyncOpenAI(api_key=openai.api_key)
 
 # Initialize Pinecone
 api_key = os.getenv("PINECONE_API_KEY")
 environment = "us-east-1"
-pc = Pinecone(api_key=api_key)
+pinecone.init(api_key=api_key, environment=environment)
 index_name = "restaurant-index"
 
-# Check if the index exists, if not, create it
-if index_name not in pc.list_indexes().names():
-    pc.create_index(
-        name=index_name,
-        dimension=1536,  # Updated to match the vector dimension of the model
-        metric='cosine',
-        spec=ServerlessSpec(
-            cloud='aws',
-            region=environment
-        )
-    )
+# Ensure the index exists
+if index_name not in pinecone.list_indexes():
+    pinecone.create_index(name=index_name, dimension=1536, metric="cosine")
 
-index = pc.Index(index_name)
+index = pinecone.Index(index_name)
 
-async def generate_vector(text):
-    response = await client.embeddings.create(
-        input=[text],  # Embedding API expects a list of inputs
-        model="text-embedding-3-small"
-    )
-    return response.data[0].embedding
+# Initialize LangChain
+embeddings = OpenAIEmbeddings(api_key=openai.api_key)
+vector_store = PineconeVectorStore(pinecone_index=index, embedding=embeddings)
+chain = LangChain(vector_store)
 
+# Function to generate vector and get recommendations
 async def get_recommendations(user_query):
     # Generate vector for user query
-    query_vector = await generate_vector(user_query)
+    query_vector = await embeddings.embed_text_async(user_query)
     # Query Pinecone for relevant information
-    results = index.query(vector=query_vector, top_k=10, include_metadata=True)
+    results = vector_store.similarity_search_by_vector(query_vector, top_k=10)
 
     # Extract relevant information from the results
     recommendations = []
-    for res in results["matches"]:
+    for res in results:
+        metadata = res.metadata
         recommendations.append({
-            "Restaurant ID": res["id"],
-            "Restaurant Name": res["metadata"].get("Restaurant Name", "N/A"),
-            "Address": res["metadata"].get("Address", "N/A"),
-            "Locality": res["metadata"].get("Locality", "N/A"),
-            "Cuisines": res["metadata"].get("Cuisines", "N/A"),
-            "Average Cost for two": res["metadata"].get("Average Cost for two", "N/A"),
-            "Aggregate rating": res["metadata"].get("Aggregate rating", "N/A"),
-            "Votes": res["metadata"].get("Votes", "N/A"),
-            "Rating text": res["metadata"].get("Rating text", "N/A")
+            "Restaurant ID": res.id,
+            "Restaurant Name": metadata.get("Restaurant Name", "N/A"),
+            "Address": metadata.get("Address", "N/A"),
+            "Locality": metadata.get("Locality", "N/A"),
+            "Cuisines": metadata.get("Cuisines", "N/A"),
+            "Average Cost for two": metadata.get("Average Cost for two", "N/A"),
+            "Aggregate rating": metadata.get("Aggregate rating", "N/A"),
+            "Votes": metadata.get("Votes", "N/A"),
+            "Rating text": metadata.get("Rating text", "N/A")
         })
 
     # Use GPT-3 to generate a response based on the recommendations
@@ -82,14 +74,12 @@ async def generate_response(user_query, recommendations):
             f"Votes: {recommendation['Votes']}\n"
             f"Rating text: {recommendation['Rating text']}\n"
         )
-    response = await client.chat.completions.create(
+    response = await openai.Completion.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ]
+        prompt=prompt,
+        max_tokens=150
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].text.strip()
 
 
 # Initialize session state for conversation history
