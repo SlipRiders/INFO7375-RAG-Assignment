@@ -9,17 +9,29 @@ from openai import AsyncOpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = AsyncOpenAI(api_key=openai.api_key)
 
+# Initialize OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = AsyncOpenAI(api_key=openai.api_key)
+
 # Initialize Pinecone
 api_key = os.getenv("PINECONE_API_KEY")
-environment = "us-east-1"
-pinecone.init(api_key=api_key, environment=environment)
+pc = pinecone(api_key=api_key)
 index_name = "restaurant-index"
+environment = "us-east-1"
 
 # Ensure the index exists
-if index_name not in pinecone.list_indexes():
-    pinecone.create_index(name=index_name, dimension=1536, metric="cosine")
+if index_name not in pc.list_indexes().names():
+    pc.create_index(
+        name=index_name,
+        dimension=1536,
+        metric="cosine",
+        spec=ServerlessSpec(
+            cloud='aws',
+            region=environment
+        )
+    )
 
-index = pinecone.Index(index_name)
+index = pc.Index(index_name)
 
 
 # Function to generate vector and get recommendations
