@@ -81,7 +81,7 @@ async def generate_response(user_query, recommendations):
             f"Votes: {recommendation['Votes']}\n"
             f"Rating text: {recommendation['Rating text']}\n"
         )
-    response = await client.chat.create(
+    response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": "You are a helpful assistant."},
                   {"role": "user", "content": prompt}]
