@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = AsyncOpenAI(api_key=openai.api_key)
 # Initialize Pinecone
-api_key = os.getenv("pinecone-api-key")
+api_key = os.getenv("PINECONE_API_KEY")
 environment = "us-east-1"
 pc = Pinecone(api_key=api_key)
 index_name = "restaurant-index"
@@ -28,27 +28,6 @@ if index_name not in pc.list_indexes().names():
 
 index = pc.Index(index_name)
 
-# Helper function to parse key elements from the user query
-def parse_key_elements(query_response):
-    # Assuming the response is in the format "location: X, rating: Y"
-    elements = query_response.split(',')
-    key_elements = {}
-    for element in elements:
-        key, value = element.split(':')
-        key_elements[key.strip()] = value.strip()
-    return key_elements
-
-async def process_user_query(user_query):
-    response = await client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"Extract key elements from the following query: {user_query}"}
-        ]
-    )
-    query_response = response.choices[0].message.content.strip()
-    return parse_key_elements(query_response)
-
 async def generate_vector(text):
     response = await client.embeddings.create(
         input=[text],  # Embedding API expects a list of inputs
@@ -56,42 +35,23 @@ async def generate_vector(text):
     )
     return response.data[0].embedding
 
-async def filter_results_by_query(results, key_elements):
-    filtered_results = []
-    for res in results["matches"]:
-        metadata = res["metadata"]
-        if 'location' in key_elements and 'rating' in key_elements:
-            if key_elements['location'].lower() in metadata['Locality'].lower() and float(metadata['Aggregate Rating']) >= float(key_elements['rating']):
-                filtered_results.append(res)
-    return filtered_results
-
-async def generate_natural_language_description(recommendation):
-    description_prompt = (
-        f"Provide a detailed and natural language description for the following restaurant recommendation:\n"
-        f"Name: {recommendation['Restaurant Name']}\n"
-        f"Address: {recommendation['Address']}\n"
-        f"Locality: {recommendation['Locality']}\n"
-        f"Cuisines: {recommendation['Cuisines']}\n"
-        f"Average Cost for Two: {recommendation['Average Cost for Two']}\n"
-        f"Aggregate Rating: {recommendation['Aggregate Rating']}\n"
-        f"Votes: {recommendation['Votes']}\n"
-        f"Rating Text: {recommendation['Rating Text']}\n"
-    )
-    response = await client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": description_prompt}
-        ]
-    )
-    return response.choices[0].message.content.strip()
-
-async def check_relevance(user_query, description):
+async def select_best_recommendation(user_query, recommendations):
     prompt = (
         f"User query: {user_query}\n"
-        f"Recommendation description: {description}\n"
-        "Does the recommendation description match the user query? Reply with 'yes' or 'no' and explain why."
+        f"Here are several restaurant recommendations. Please select the one that best matches the user's query and provide a detailed description:\n"
     )
+    for i, recommendation in enumerate(recommendations):
+        prompt += (
+            f"\nRecommendation {i+1}:\n"
+            f"Name: {recommendation['Restaurant Name']}\n"
+            f"Address: {recommendation['Address']}\n"
+            f"Locality: {recommendation['Locality']}\n"
+            f"Cuisines: {recommendation['Cuisines']}\n"
+            f"Average Cost for Two: {recommendation['Average Cost for Two']}\n"
+            f"Aggregate Rating: {recommendation['Aggregate Rating']}\n"
+            f"Votes: {recommendation['Votes']}\n"
+            f"Rating Text: {recommendation['Rating Text']}\n"
+        )
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -99,21 +59,15 @@ async def check_relevance(user_query, description):
             {"role": "user", "content": prompt}
         ]
     )
-    relevance_response = response.choices[0].message.content.strip().lower()
-    relevance = "yes" in relevance_response
-    explanation = relevance_response if not relevance else ""
-    return relevance, explanation
+    return response.choices[0].message.content.strip()
 
-async def get_recommendations(processed_query, user_query):
-    query_vector = await generate_vector(processed_query)
+async def get_recommendations(user_query):
+    query_vector = await generate_vector(user_query)
     results = index.query(vector=query_vector, top_k=10, include_metadata=True)
-    key_elements = await process_user_query(user_query)  # 提取用户查询中的关键元素
-
-    filtered_results = await filter_results_by_query(results, key_elements)
 
     recommendations = []
-    for res in filtered_results:
-        recommendation = {
+    for res in results["matches"]:
+        recommendations.append({
             "Restaurant ID": res["id"],
             "Restaurant Name": res["metadata"]["Restaurant Name"],
             "Address": res["metadata"]["Address"],
@@ -123,16 +77,13 @@ async def get_recommendations(processed_query, user_query):
             "Aggregate Rating": res["metadata"]["Aggregate Rating"],
             "Votes": res["metadata"]["Votes"],
             "Rating Text": res["metadata"]["Rating Text"]
-        }
-        description = await generate_natural_language_description(recommendation)
-        relevance, explanation = await check_relevance(user_query, description)
-        if relevance:
-            recommendations.append(recommendation)
-            break
-        else:
-            print(f"Recommendation discarded: {explanation}")
+        })
 
-    return recommendations[0] if recommendations else None
+    if recommendations:
+        best_recommendation = await select_best_recommendation(user_query, recommendations)
+        return best_recommendation
+    else:
+        return "No relevant recommendations found."
 
 # Initialize session state for conversation history
 if 'history' not in st.session_state:
@@ -145,14 +96,8 @@ user_query = st.text_input("Enter your preferences or needs:")
 def get_recommendation_and_description(user_query):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    processed_query = loop.run_until_complete(process_user_query(user_query))
-    recommendation = loop.run_until_complete(get_recommendations(processed_query, user_query))
-
-    if recommendation:
-        description = loop.run_until_complete(generate_natural_language_description(recommendation))
-        return description
-    else:
-        return "No relevant recommendations found."
+    recommendation = loop.run_until_complete(get_recommendations(user_query))
+    return recommendation
 
 if st.button("Get Recommendations"):
     if user_query:
