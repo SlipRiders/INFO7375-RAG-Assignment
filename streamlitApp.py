@@ -34,7 +34,7 @@ index = pc.Index(index_name)
 # Function to check if the query is a valid restaurant recommendation question
 async def is_valid_query(user_query):
     prompt = f"Is the following query a valid question for restaurant recommendations? Query: {user_query}"
-    response = await client.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "system", "content": "You are an assistant that checks if a query is valid for restaurant recommendations."},
                   {"role": "user", "content": prompt}]
