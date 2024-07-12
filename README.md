@@ -13,6 +13,9 @@ This project is a Restaurant Recommendation Chatbot that utilizes local data to 
 ## Video Demonstration
 link: [Youtube](https://youtu.be/94NzZf6JlV8) 
 
+## Streamlit app link:
+https://info7375-rag-assignmentgit-x5bjdrcrr69lkvbj9kj6cw.streamlit.app/            
+[click here](https://info7375-rag-assignmentgit-x5bjdrcrr69lkvbj9kj6cw.streamlit.app/)
 ## Project Structure
 
 - `main.py`: The main script that runs the Streamlit application and handles user interactions.
