@@ -108,7 +108,7 @@ async def generate_response(user_query, recommendations):
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-st.title("Restaurant Recommendation Chatbot")
+st.title("Restaurant Recommendation Chatbot for New Delhi")
 
 user_query = st.text_input("Enter your preferences or needs:")
 
