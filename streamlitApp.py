@@ -31,6 +31,17 @@ if index_name not in pc.list_indexes().names():
 
 index = pc.Index(index_name)
 
+# Function to check if the query is a valid restaurant recommendation question
+async def is_valid_query(user_query):
+    prompt = f"Is the following query a valid question for restaurant recommendations? Query: {user_query}"
+    response = await client.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "system", "content": "You are an assistant that checks if a query is valid for restaurant recommendations."},
+                  {"role": "user", "content": prompt}]
+    )
+    answer = response.choices[0].message.content.strip().lower()
+    return "yes" in answer
+
 # Function to generate vector and get recommendations
 async def get_recommendations(user_query):
     # Generate vector for user query
@@ -102,8 +113,12 @@ st.title("Restaurant Recommendation Chatbot")
 user_query = st.text_input("Enter your preferences or needs:")
 
 async def get_recommendation_and_description(user_query):
-    recommendation = await get_recommendations(user_query)
-    return recommendation
+    valid = await is_valid_query(user_query)
+    if valid:
+        recommendation = await get_recommendations(user_query)
+        return recommendation
+    else:
+        return "The query is not a valid restaurant recommendation question. Please rephrase your query."
 
 if st.button("Get Recommendations"):
     if user_query:
